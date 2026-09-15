@@ -1,0 +1,9 @@
+li[data-link="__LINK__"] .menu-item-icon{
+	color: transparent;
+	background-color: transparent !important;
+	background-image: url("__ICON_DATA_URI__");
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 70%;
+	opacity: 0.8;
+}

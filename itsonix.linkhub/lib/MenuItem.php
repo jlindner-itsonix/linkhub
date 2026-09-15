@@ -101,6 +101,8 @@ class MenuItem
 		{
 			Option::set('intranet', $optionName, serialize($items), $siteId);
 		}
+
+		self::invalidateMenuCache();
 	}
 
 	// itsonix: für DoUninstall() — entfernt alle eigenen (+ Vorgänger-)Einträge unabhängig vom
@@ -132,6 +134,26 @@ class MenuItem
 		else
 		{
 			Option::set('intranet', $optionName, serialize($items), $siteId);
+		}
+
+		self::invalidateMenuCache();
+	}
+
+	// itsonix: Bitrix24 rendert die linke Navigation i.d.R. über den Composite-/Turbo-Cache. Der
+	// Core-eigene Controller (\Bitrix\Intranet\Controller\LeftMenu::processBeforeAction()) räumt
+	// diesen VOR jeder Menü-Änderung weg — wir schreiben die Option aber direkt (kein Controller-
+	// Aufruf), daher hier explizit nachgezogen. Ohne das bleibt ein neuer/geänderter Menüpunkt
+	// unsichtbar, bis der Seiten-Cache anderweitig abläuft/geleert wird (siehe 15.09.2026:
+	// Menüeintrag erschien beim Test nicht, obwohl Option korrekt gespeichert war).
+	private static function invalidateMenuCache(): void
+	{
+		if (class_exists('\Bitrix\Intranet\Composite\CacheProvider'))
+		{
+			\Bitrix\Intranet\Composite\CacheProvider::deleteAllCache();
+		}
+		if (class_exists('\Bitrix\Intranet\Portal\FirstPage'))
+		{
+			\Bitrix\Intranet\Portal\FirstPage::getInstance()->clearCacheForAll();
 		}
 	}
 }

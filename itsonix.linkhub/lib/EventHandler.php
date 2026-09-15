@@ -72,75 +72,14 @@ class EventHandler
 			$tiles .= "<a href=\"{$url}\"{$target}><img src=\"{$icon}\" alt=\"\"><span>{$label}</span></a>";
 		}
 
-		return <<<HTML
-<style>
-/* itsonix: Blauton per Pixel-Sample aus Screenshot der linken Navigation gezogen
-(RGB~28,37,140 / #1c258e). Layout: 3 Kacheln pro Zeile (Container-Breite passend für
-3x64px+Gaps berechnet, box-sizing:border-box auf Container UND Kacheln), vierte rutscht
-per flex-wrap automatisch in die nächste Zeile. */
-#itsonix-app-switcher-menu{display:none;flex-wrap:wrap;position:fixed;box-sizing:border-box;width:220px;padding:8px;gap:4px;background:linear-gradient(180deg,#232f9e,#141c72);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.35);z-index:9999;}
-#itsonix-app-switcher-menu a{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:64px;padding:8px 4px;border-radius:6px;color:#dfe3f5;text-decoration:none;font-size:11px;text-align:center;}
-#itsonix-app-switcher-menu a:hover{background:rgba(255,255,255,.1);}
-#itsonix-app-switcher-menu img{width:20px;height:20px;}
-/* itsonix: Trigger-Button rechts neben dem "Bitrix24"-Schriftzug im Sidebar-Header
-(.menu-items-header__logo) — gleiche Farbvariable wie der Schriftzug selbst
-(--ui-color-base-1, siehe .menu-items-header__logo in menu-items-header.css), damit er in
-hellem wie dunklem Theme dazu passt. */
-.itsonix-app-switcher-btn{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;margin-left:6px;border-radius:6px;color:var(--ui-color-base-1);cursor:pointer;text-decoration:none;}
-.itsonix-app-switcher-btn:hover{background:rgba(0,0,0,.06);}
-.itsonix-app-switcher-btn svg{width:18px;height:18px;display:block;}
-</style>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-	// itsonix: einziger Trigger-Punkt ist dieser eigene Button, als Geschwister-Element direkt
-	// NACH .menu-items-header__logo (dem "Bitrix24"-Schriftzug) eingefügt — nicht mehr der ganze
-	// Schriftzug-Link selbst (der navigiert wieder normal zu $siteUrl, kein preventDefault mehr
-	// darauf). Davor sitzt bereits der Sidebar-Ein-/Ausklapp-Button
-	// (.menu-items-header__menu-swticher), daher rechts danach statt davor platziert.
-	var logo = document.querySelector('.menu-items-header__logo');
-	if (!logo) return;
+		$css = self::loadTemplate('popup.css');
+		$js = str_replace(
+			['__SWITCHER_ICON__', '__TILES__'],
+			[$switcherIcon, $tiles],
+			self::loadTemplate('popup.js')
+		);
 
-	var switcherBtn = document.createElement('a');
-	switcherBtn.href = '#';
-	switcherBtn.className = 'itsonix-app-switcher-btn';
-	switcherBtn.title = 'Apps wechseln';
-	switcherBtn.innerHTML = `{$switcherIcon}`;
-	logo.insertAdjacentElement('afterend', switcherBtn);
-
-	var menu = document.createElement('div');
-	menu.id = 'itsonix-app-switcher-menu';
-	menu.innerHTML = `{$tiles}`;
-	document.body.appendChild(menu);
-
-	function closeMenu() {
-		menu.style.display = 'none';
-	}
-
-	function toggleMenu() {
-		if (menu.style.display === 'flex') {
-			closeMenu();
-			return;
-		}
-		var rect = switcherBtn.getBoundingClientRect();
-		menu.style.top = (rect.bottom + 6) + 'px';
-		menu.style.left = rect.left + 'px';
-		menu.style.display = 'flex';
-	}
-
-	switcherBtn.addEventListener('click', function (e) {
-		e.preventDefault();
-		e.stopPropagation();
-		toggleMenu();
-	});
-
-	document.addEventListener('click', function (e) {
-		if (menu.style.display === 'flex' && !menu.contains(e.target) && e.target !== switcherBtn && !switcherBtn.contains(e.target)) {
-			closeMenu();
-		}
-	});
-});
-</script>
-HTML;
+		return "<style>{$css}</style>\n<script>{$js}</script>";
 	}
 
 	private static function renderMenuItemIcon(int $index, string $url): string
@@ -159,19 +98,19 @@ HTML;
 			: self::getGenericAppIconDataUri();
 		$link = htmlspecialcharsbx(MenuItem::getLink($index));
 
-		return <<<HTML
-<style>
-li[data-link="{$link}"] .menu-item-icon{
-	color: transparent;
-	background-color: transparent !important;
-	background-image: url("{$iconDataUri}");
-	background-repeat: no-repeat;
-	background-position: center;
-	background-size: 70%;
-	opacity: 0.8;
-}
-</style>
-HTML;
+		$css = str_replace(
+			['__LINK__', '__ICON_DATA_URI__'],
+			[$link, $iconDataUri],
+			self::loadTemplate('menu-item-icon.css')
+		);
+
+		return "<style>{$css}</style>";
+	}
+
+	private static function loadTemplate(string $file): string
+	{
+		$content = @file_get_contents(__DIR__ . '/../templates/' . $file);
+		return $content !== false ? $content : '';
 	}
 
 	private static function getIconDataUri(string $file): string

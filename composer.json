@@ -1,0 +1,25 @@
+{
+	"name": "itsonix/linkhub-dev",
+	"description": "Dev tooling (tests only) for the itsonix.linkhub Bitrix24 module. Not part of the shipped module — build.sh packages itsonix.linkhub/ alone.",
+	"type": "project",
+	"license": "proprietary",
+	"require-dev": {
+		"phpunit/phpunit": "^10.5"
+	},
+	"autoload": {
+		"psr-4": {
+			"Itsonix\\LinkHub\\": "itsonix.linkhub/lib/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"Itsonix\\LinkHub\\Tests\\": "tests/"
+		}
+	},
+	"scripts": {
+		"test": "phpunit"
+	},
+	"config": {
+		"sort-packages": true
+	}
+}

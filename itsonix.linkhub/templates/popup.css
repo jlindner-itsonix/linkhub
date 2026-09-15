@@ -1,0 +1,15 @@
+/* itsonix: Blauton per Pixel-Sample aus Screenshot der linken Navigation gezogen (RGB~28,37,140 /
+#1c258e). Layout: 3 Kacheln pro Zeile (Container-Breite passend fuer 3x64px+Gaps berechnet,
+box-sizing:border-box auf Container UND Kacheln), vierte rutscht per flex-wrap automatisch in die
+naechste Zeile. */
+#itsonix-app-switcher-menu{display:none;flex-wrap:wrap;position:fixed;box-sizing:border-box;width:220px;padding:8px;gap:4px;background:linear-gradient(180deg,#232f9e,#141c72);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.35);z-index:9999;}
+#itsonix-app-switcher-menu a{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:64px;padding:8px 4px;border-radius:6px;color:#dfe3f5;text-decoration:none;font-size:11px;text-align:center;}
+#itsonix-app-switcher-menu a:hover{background:rgba(255,255,255,.1);}
+#itsonix-app-switcher-menu img{width:20px;height:20px;}
+/* itsonix: Trigger-Button rechts neben dem "Bitrix24"-Schriftzug im Sidebar-Header
+(.menu-items-header__logo) - gleiche Farbvariable wie der Schriftzug selbst (--ui-color-base-1,
+siehe .menu-items-header__logo in menu-items-header.css), damit er in hellem wie dunklem Theme
+dazu passt. */
+.itsonix-app-switcher-btn{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;margin-left:6px;border-radius:6px;color:var(--ui-color-base-1);cursor:pointer;text-decoration:none;}
+.itsonix-app-switcher-btn:hover{background:rgba(0,0,0,.06);}
+.itsonix-app-switcher-btn svg{width:18px;height:18px;display:block;}
