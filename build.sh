@@ -6,6 +6,9 @@ set -eu
 cd "$(dirname "$0")"
 
 rm -f itsonix.linkhub.tar.gz
-tar -czf itsonix.linkhub.tar.gz itsonix.linkhub
+find itsonix.linkhub -name '.DS_Store' -delete
+# itsonix: COPYFILE_DISABLE unterdrueckt macOS' AppleDouble-Metadaten (._*-Dateien), die bsdtar
+# sonst pro Datei mit ins Archiv packt — sonst landen die auch auf der Ziel-Bitrix-Box.
+COPYFILE_DISABLE=1 tar -czf itsonix.linkhub.tar.gz itsonix.linkhub
 
 echo "Erstellt: $(pwd)/itsonix.linkhub.tar.gz"

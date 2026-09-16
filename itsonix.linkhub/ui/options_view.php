@@ -1,7 +1,11 @@
 <?php
 // itsonix: reines Ansichts-Template — nur Ausgabe, keine Business-Logik. Wird von options.php
 // nach dem POST-Handling per require eingebunden; erwartet $module_id, $aTabs, $tabControl als
-// vorbereitete Variablen aus dem Aufrufer.
+// vorbereitete Variablen aus dem Aufrufer. Eigene use-Imports noetig — als separate Datei per
+// require() eingebunden erbt sie NICHT die use-Statements von options.php (PHP-Imports gelten
+// pro Datei, nicht pro Ausfuehrungskontext); ohne das hier: "Class Loc not found".
+use Bitrix\Main\Localization\Loc;
+use Itsonix\LinkHub\Config;
 ?>
 <form method="post" action="<?= $APPLICATION->GetCurPage() ?>?mid=<?= urlencode($module_id) ?>&amp;lang=<?= LANGUAGE_ID ?>">
 	<?php $tabControl->BeginNextTab(); ?>

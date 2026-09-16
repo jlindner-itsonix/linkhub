@@ -22,19 +22,30 @@ row), and the iframe height setting.
 
 ## Tests
 
-**None, deliberately.** Rendering and POST handling depend on the real
-Bitrix admin framework — `CAdminTabControl`, `check_bitrix_sessid()`,
-`LocalRedirect()`, `$APPLICATION->GetCurPage()`, `bitrix_sessid_post()` —
-none of which are meaningfully stubbable without either reimplementing a
-chunk of Bitrix's admin kernel or testing the stub instead of real
-behavior. What *is* covered is everything this page delegates to:
-`Config::setEntries()`/toggle options (see
+`tests/OptionsViewTest.php` — smoke-tests `ui/options_view.php` in isolation
+(stubbed `$APPLICATION`/`$tabControl`, real `Config`): asserts it renders
+without throwing and reflects configured entries in the output. This is a
+regression test for a real bug (16.09.2026): the view uses
+`Loc::getMessage()`/`Config::*` unqualified, and as a separately-`require`d
+file it does **not** inherit `options.php`'s `use` imports (PHP imports are
+per-file, not per request) — without its own `use Bitrix\Main\Localization\Loc;`
+/ `use Itsonix\LinkHub\Config;` at the top, this throws `Class "Loc" not
+found` the moment the real admin page is opened. Any new class reference
+added to `ui/options_view.php` needs its own `use` there too — this test
+would catch a missing one, but only if the class is actually referenced in
+a code path the test exercises.
+
+**`options.php`'s own POST handling stays untested**, deliberately. It
+depends on the real Bitrix admin framework — `CAdminTabControl`,
+`check_bitrix_sessid()`, `LocalRedirect()` — not meaningfully stubbable
+without either reimplementing a chunk of Bitrix's admin kernel or testing
+the stub instead of real behavior. What *is* covered is everything it
+delegates to: `Config::setEntries()`/toggle options (see
 [entry-storage.md](entry-storage.md), [global-toggles.md](global-toggles.md),
 [iframe-height.md](iframe-height.md)) and `MenuItem::sync()` (see
-[menu-sync.md](menu-sync.md)) — the actual persistence and side effects,
-just not this file's HTML/POST plumbing.
+[menu-sync.md](menu-sync.md)).
 
-**Manual verification instead**, after any change to this page: save the
+**Manual verification** after any change to the POST-handling side: save the
 form on a real Bitrix24 instance and confirm — toggles persist, an added
 row survives a reload, a removed row's URL disappears from the option, and
 the corresponding menu item appears/disappears per

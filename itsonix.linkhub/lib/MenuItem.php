@@ -34,9 +34,17 @@ class MenuItem
 		return self::LINK_BASE . '?entry=' . $index;
 	}
 
+	// itsonix: NICHT auf die SITE_ID-Konstante verlassen — im Admin-Kontext (options.php,
+	// install/index.php) gibt es oft kein aufloesbares Site-Objekt, dann faellt Bitrix' eigener
+	// Kernel-Bootstrap auf SITE_ID=LANG zurueck (bitrix/modules/main/include.php), also die
+	// Admin-UI-Sprache (z.B. "de") statt der echten Portal-Site ("s1"). Führte dazu, dass
+	// MenuItem::sync() beim Speichern im Options-Formular in left_menu_items_to_all_de statt
+	// _s1 schrieb — die echte Navigation liest aber _s1, Eintrag blieb unsichtbar (Bug
+	// 16.09.2026). CSite::GetDefSite() fragt stattdessen direkt die Site-Verwaltung ab, unabhaengig
+	// vom Request-Kontext.
 	private static function getSiteId(): string
 	{
-		return defined('SITE_ID') ? SITE_ID : 's1';
+		return \CSite::GetDefSite() ?: 's1';
 	}
 
 	private static function getOptionName(): string

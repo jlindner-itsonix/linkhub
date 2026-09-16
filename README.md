@@ -1,126 +1,181 @@
-# itsonix.linkhub — Bitrix24 App Switcher & Menu Links
+# itsonix.linkhub — Bitrix24 App Switcher & Menü-Links
 
-Bitrix24 local module that lets an admin register any number of external links
-(intranet tools, wikis, dashboards, ...) and expose each one as a sidebar-logo
-popup tile, a left-menu entry with an in-page iframe, or both. Successor/merge
-of the earlier `itsonix.xwiki` (menu + iframe) and `itsonix.appswitcher`
-(popup tiles) modules.
+Bitrix24-Lokalmodul, mit dem ein Admin beliebig viele externe Links (Intranet-
+Tools, Wikis, Dashboards, ...) hinterlegen und jeden davon als Sidebar-Logo-
+Popup-Kachel, als Menüeintrag mit In-Page-iFrame, oder beides anzeigen kann.
 
-## Functional overview
+> Für Entwicklungskontext (Konventionen, wie Features hier verändert werden)
+> siehe [`agent.md`](agent.md); für Feature-für-Feature-Doku mit den jeweils
+> zugehörigen Tests siehe [`doc/`](doc/README.md).
 
-**Problem it solves:** Employees need one-click access to tools that live
-outside Bitrix24 (XWiki, AWU, SkillDB, ...) without leaving the Bitrix24 shell
-or hunting for bookmarks.
+## Funktionaler Überblick
 
-**What the admin configures** (Bitrix24 admin panel → Settings → Modules →
-"Link Hub" options page): an arbitrary list of entries, each with
+**Gelöstes Problem:** Mitarbeiter brauchen Ein-Klick-Zugriff auf Tools
+außerhalb von Bitrix24 (XWiki, AWU, SkillDB, ...), ohne die Bitrix24-Oberfläche
+zu verlassen oder Lesezeichen suchen zu müssen.
 
-- **Label** — display name.
-- **URL** — internal path (e.g. `/xwiki/`) or full external URL.
-- **Show in menu** — adds an icon-only item to the left navigation; clicking
-  it opens the target inside Bitrix24, embedded in an iframe on a dedicated
-  page (so the Bitrix24 frame/navigation stays visible).
-- **Show in popup** — adds a tile to a popup menu that opens when clicking the
-  sidebar logo (top of the left navigation), next to the burger icon.
-  External targets (different domain) open in a new tab instead, so the
-  Bitrix24 session isn't affected.
+**Was der Admin konfiguriert** (Bitrix24-Adminbereich → Einstellungen →
+Module → Options-Seite "Link Hub"): eine beliebige Liste von Einträgen, je
+mit
 
-Both placements are independent per entry — a link can appear in neither, one,
-or both. There are two global toggles to turn the menu feature and the popup
-feature on/off entirely, plus a setting for how the iframe page sizes itself
-(fill the viewport, or a fixed pixel height).
+- **Label** — Anzeigename.
+- **URL** — interner Pfad (z. B. `/xwiki/`) oder vollständige externe URL.
+- **Im Menü anzeigen** — fügt einen reinen Icon-Eintrag in die linke
+  Navigation ein; ein Klick öffnet das Ziel innerhalb von Bitrix24, eingebettet
+  per iFrame auf einer eigenen Seite (damit Bitrix24-Rahmen/-Navigation
+  sichtbar bleiben).
+- **Im Popup anzeigen** — fügt eine Kachel zu einem Popup-Menü hinzu, das sich
+  beim Klick auf das Sidebar-Logo öffnet (oben in der linken Navigation, neben
+  dem Burger-Icon). Externe Ziele (andere Domain) öffnen stattdessen in einem
+  neuen Tab, damit die Bitrix24-Session nicht beeinträchtigt wird.
 
-**Defaults on a fresh install:** XWiki (menu), AWU (popup), SkillDB (popup) —
-these mirror what the two predecessor modules shipped before the merge.
+Beide Darstellungen sind pro Eintrag unabhängig voneinander — ein Link kann in
+keiner, einer oder beiden auftauchen. Es gibt zwei globale Schalter, um die
+Menü-Funktion und die Popup-Funktion jeweils komplett ein-/auszuschalten, plus
+eine Einstellung dafür, wie sich die iFrame-Seite dimensioniert (Viewport
+ausfüllen, oder feste Pixel-Höhe).
 
-## Technical overview
+**Defaults bei einer frischen Installation:** XWiki (Menü), AWU (Popup),
+SkillDB (Popup).
 
-### Structure
+## Technischer Überblick
+
+### Struktur
 
 ```
 itsonix.linkhub/
-  install/index.php     CModule: register/unregister module + OnProlog event, menu sync
-  install/version.php   Module version
-  options.php            Admin settings page (entry list editor, add/remove rows via JS)
-  lib/Config.php          Reads/writes module options (Bitrix\Main\Config\Option)
-  lib/EventHandler.php    OnProlog handler: injects popup HTML/CSS/JS and per-entry menu icon CSS
-  lib/MenuItem.php        Syncs left_menu_items_to_all_<SITE_ID> option with configured entries
-  lang/{de,en}/...        Admin UI translations
-  icons/xwiki-light.svg   Icon used for XWiki entries (URL contains "xwiki")
+  install/index.php       CModule: Modul registrieren/deregistrieren + OnProlog-Event, Menü-Sync
+  install/version.php     Modul-Version
+  options.php             Admin-Einstellungsseite: nur POST-Handling/Logik, rendert via ui/options_view.php
+  ui/options_view.php     Formular-Markup (reines HTML/PHP-Ausgabe, keine Logik)
+  ui/options.js           Zeilen per Klick hinzufügen/entfernen (reines JS, von options_view.php geladen)
+  lib/Config.php          Liest/schreibt Modul-Options (Bitrix\Main\Config\Option)
+  lib/EventHandler.php    OnProlog-Handler: laedt templates/* und injiziert Popup-/Menü-Icon-CSS+JS
+  lib/MenuItem.php        Synchronisiert Option left_menu_items_to_all_<SITE_ID> mit den konfigurierten Einträgen
+  templates/popup.css     Popup-Styling (reines CSS, keine PHP-Tags)
+  templates/popup.js      Popup-Verhalten (reines JS, Platzhalter __SWITCHER_ICON__/__TILES__)
+  templates/menu-item-icon.css  Menü-Icon-CSS (Platzhalter __LINK__/__ICON_DATA_URI__)
+  lang/{de,en}/...        Übersetzungen der Admin-UI
+  icons/xwiki-light.svg   Icon für XWiki-Einträge (URL enthält "xwiki")
+  icons/app-switcher.svg  Icon für den Popup-Trigger-Button
 ```
 
-### How it works
+### Funktionsweise
 
-- **No core patches.** Everything is injected via the standard `main`/`OnProlog`
-  event (`EventHandler::onProlog`), which adds `<style>`/`<script>` to
-  `<head>` on every page. The popup is attached client-side to the existing
-  `.menu-items-header__logo` element; per-entry menu icons are targeted via a
-  CSS selector on `data-link` (see the code comment in `MenuItem::getLink` for
-  why `data-link` was chosen over the item's admin-configured ID — Bitrix
-  assigns its own internal numeric ID to custom left-menu items, so ID-based
-  targeting doesn't work).
-- **Storage:** entries are one serialized array in module option `ENTRIES`
-  (`Config::getEntries()`/`setEntries()`); `unserialize()` is called with
-  `allowed_classes => false`. Global toggles and iframe height are separate
-  scalar options.
-- **Left-menu integration:** menu entries are written directly into Bitrix's
-  own `left_menu_items_to_all_<SITE_ID>` option (`MenuItem::sync()`), tagged
-  with an ID prefix (`menu_itsonix_linkhub_<index>`) so the module can find
-  and remove exactly its own rows on save/uninstall without disturbing other
-  custom menu items. `sync()` also cleans up legacy `menu_itsonix_xwiki*`
-  entries left over from the pre-merge module.
-- **Iframe landing page:** menu entries link to `/local/linkhub/?entry=N`
-  (`N` = index into the full `Config::getEntries()` list), which renders the
-  target URL in an iframe and hides Bitrix24's page toolbar so the embedded
-  tool fills the content area.
-- **Migration:** `Config::getEntries()` still understands the old single
-  `mode` field (`menu`/`popup`/`both`) from the module's first version and
-  converts it to the current `showInMenu`/`showInPopup` booleans on read.
+- **Keine Core-Patches.** Alles wird über das Standard-`main`/`OnProlog`-Event
+  injiziert (`EventHandler::onProlog`), das bei jedem Seitenaufruf
+  `<style>`/`<script>` ins `<head>` einfügt. Das Popup wird clientseitig an
+  das bestehende `.menu-items-header__logo`-Element angehängt; Menü-Icons je
+  Eintrag werden über einen CSS-Selektor auf `data-link` angesprochen (siehe
+  Code-Kommentar in `MenuItem::getLink`, warum `data-link` statt der
+  admin-konfigurierten ID des Eintrags gewählt wurde — Bitrix vergibt eigene
+  interne numerische IDs für Custom-Left-Menu-Items, ID-basiertes Targeting
+  funktioniert daher nicht).
+- **Speicherung:** Einträge liegen als ein serialisiertes Array in der
+  Modul-Option `ENTRIES` (`Config::getEntries()`/`setEntries()`);
+  `unserialize()` wird mit `allowed_classes => false` aufgerufen. Globale
+  Schalter und iFrame-Höhe sind eigene skalare Options.
+- **Linke-Menü-Integration:** Menüeinträge werden direkt in Bitrix' eigene
+  Option `left_menu_items_to_all_<SITE_ID>` geschrieben (`MenuItem::sync()`),
+  markiert mit einem ID-Präfix (`menu_itsonix_linkhub_<index>`), damit das
+  Modul beim Speichern/Deinstallieren genau seine eigenen Zeilen findet und
+  entfernt, ohne andere Custom-Menüeinträge zu stören. `sync()` räumt
+  außerdem verwaiste `menu_itsonix_xwiki*`-Einträge vom Vorgänger-Modul mit
+  weg.
+- **Cache-Invalidierung:** Bitrix24 rendert die linke Navigation meist über
+  den Composite-/Turbo-Cache. Weil `MenuItem::sync()`/`removeAll()` die
+  Option direkt schreiben (kein Controller-Aufruf wie bei Bitrix' eigenem
+  Menü-Editor), räumen sie danach explizit
+  `\Bitrix\Intranet\Composite\CacheProvider::deleteAllCache()` und
+  `\Bitrix\Intranet\Portal\FirstPage::clearCacheForAll()` weg — sonst bleibt
+  ein neuer/geänderter Menüpunkt unsichtbar, bis der Cache anderweitig
+  abläuft (siehe [`doc/menu-cache-invalidation.md`](doc/menu-cache-invalidation.md),
+  ein echter Bug, der genau daran lag).
+- **iFrame-Landingpage:** Menüeinträge verlinken auf
+  `/local/linkhub/?entry=N` (`N` = Index in der vollständigen
+  `Config::getEntries()`-Liste), die die Ziel-URL in einem iFrame rendert und
+  Bitrix24s Seiten-Toolbar ausblendet, damit das eingebettete Tool den
+  Content-Bereich ausfüllt.
+- **Migration:** `Config::getEntries()` versteht weiterhin das alte einzelne
+  `mode`-Feld (`menu`/`popup`/`both`) aus der ersten Modul-Version und
+  konvertiert es beim Lesen in die aktuellen `showInMenu`/`showInPopup`-
+  Booleans.
 
-### Known limitation
+### Bekannte Einschränkung
 
-`/local/linkhub/index.php` (the iframe landing page that menu entries link
-to) lives outside `itsonix.linkhub/` and is **not** included in the packaged
-`.tar.gz`. On a fresh install elsewhere, menu entries will render but the
-"no entry" message rather than an iframe until that page is deployed too.
-Ask before relying on this in a new environment.
+`/local/linkhub/index.php` (die iFrame-Landingpage, auf die Menüeinträge
+verlinken) liegt außerhalb von `itsonix.linkhub/` und ist **nicht** im
+gepackten `.tar.gz` enthalten. Bei einer frischen Installation anderswo
+rendern Menüeinträge zwar, zeigen aber die "kein Eintrag"-Meldung statt eines
+iFrames, bis diese Seite ebenfalls deployt wird. Vor Verlassen darauf in einer
+neuen Umgebung nachfragen.
 
 ### Build
 
 ```bash
 cd bitrix24-module-linkhub
-./build.sh          # produces itsonix.linkhub.tar.gz
+./build.sh          # erzeugt itsonix.linkhub.tar.gz
 ```
 
-Produces a `.tar.gz` with `itsonix.linkhub/` at the archive root — the format
-Bitrix24 expects for "Install module from file" (Marketplace → Local modules).
+Erzeugt ein `.tar.gz` mit `itsonix.linkhub/` im Archiv-Root — die Struktur,
+die ein lokaler Modul-Ordner unter `local/modules/` braucht (siehe
+"Installieren / Deinstallieren" unten; im Standard-Bitrix gibt es keinen
+Browser-Upload für beliebige lokale Module — verifiziert anhand von
+`bitrix/modules/main/admin/module_admin.php` und `partner_modules.php`,
+Letzteres ist Bitrix' eigener kostenpflichtiger/offizieller Marketplace-
+Katalog, kein generischer Datei-Upload-Installer).
 
-### Install / uninstall
+### Installieren / Deinstallieren
 
-Admin panel → Marketplace → Local modules → upload `itsonix.linkhub.tar.gz` →
-Install. `DoInstall()` registers the `OnProlog` event handler and syncs the
-default menu entries. `DoUninstall()` removes the event handler and all of
-the module's own left-menu entries.
+Der Modul-Ordner muss physisch unter `local/modules/itsonix.linkhub/` auf dem
+Server existieren, bevor Bitrix die Installation anbietet — es gibt keinen
+Admin-UI-Upload für eigene/lokale Module (nur Bitrix' eigener
+kostenpflichtiger Marketplace-Katalog hat einen upload-ähnlichen Ablauf, der
+damit aber nichts zu tun hat). Zwei Wege, den Ordner dorthin zu bekommen:
 
-### Local dev setup
+- **Datei-Zugriff** (SSH/SCP/Docker exec/etc.): `itsonix.linkhub.tar.gz`
+  direkt nach `local/modules/` entpacken.
+- **Nur Admin-UI, ohne SSH** (funktioniert auch mit Demo-Lizenz — verifiziert:
+  weder `module_admin.php` noch `partner_modules.php` haben im Code
+  irgendeine Lizenz-/Edition-Prüfung für lokale Module):
+  1. Inhalte → Dateien und Ordner
+     (`/bitrix/admin/fileman_admin.php?lang=de&site=s1&path=/local/modules/`).
+  2. Dort `itsonix.linkhub.tar.gz` per Upload-Button in den Ordner
+     `/local/modules/` hochladen.
+  3. Datei anklicken/markieren → Werkzeug **"Packen/Entpacken"** →
+     Zielordner `/local/modules/` → **Entpacken** klicken (ruft intern
+     `CArchive->Unpack()` auf, entpackt den `itsonix.linkhub/`-Ordner aus
+     dem Archiv-Root — siehe `fileman/classes/general/fileman_utils.php`).
+  4. Entpacken allein installiert das Modul noch **nicht** — nur die Dateien
+     liegen jetzt da. Danach: Einstellungen → Systemeinstellungen → Module
+     (`http://localhost/bitrix/admin/partner_modules.php?lang=de`) →
+     `itsonix.linkhub` suchen → **Installieren** klicken.
 
-The Docker test instance's module directory is a symlink to this project
-(host-visible only):
+So oder so, sobald der Ordner existiert: Einstellungen → Systemeinstellungen
+→ Module (`module_admin.php` bzw. `partner_modules.php`) → `itsonix.linkhub`
+→ **Installieren**.
+`DoInstall()` registriert den `OnProlog`-Event-Handler und synchronisiert die
+Default-Menüeinträge. `DoUninstall()` entfernt den Event-Handler und alle
+eigenen Menüeinträge des Moduls (und, je nach "Auch Dateien löschen"-Checkbox
+der Admin-UI, den Modul-Ordner selbst).
 
-```
-bitrix24-docker/test/bitrixdock/www/local/modules/itsonix.linkhub
-  -> bitrix24-module-linkhub/itsonix.linkhub
-```
+### Lokales Dev-Setup
 
-That symlink alone does **not** work inside the `php` container — Docker only
-bind-mounts `SITE_PATH` (`./www`), so a symlink target outside that tree is
-unreachable from inside the container's mount namespace. `docker-compose.yml`
-therefore has an extra bind mount for the `php` service pointing straight at
-this project's `itsonix.linkhub/` folder, overriding the host symlink path
-inside the container. If you re-run `bitrixdock`'s installer or otherwise
-regenerate `docker-compose.yml`, that extra mount line needs to be re-added
-and the `php` container recreated (`docker compose up -d php`).
+Die Docker-Testinstanz (`bitrix24-docker/test/bitrixdock`) läuft mit einer
+**klassischen, nicht-live Installation** — das Modul ist eine echte, statische
+Kopie des tar.gz-Inhalts unter `www/local/modules/itsonix.linkhub` im
+`php`-Container, installiert auf dem normalen Weg (siehe "Installieren /
+Deinstallieren" oben), genau wie auf einer echten Bitrix24-Box. Es gibt
+absichtlich keinen Bind-Mount oder Symlink mehr von diesem Projekt-Ordner
+`itsonix.linkhub/` in den Container hinein (eine frühere Fassung dieses
+Setups hatte einen — der wurde bewusst entfernt, um den echten
+Packaging-/Install-Weg zu testen statt ihn zu verdecken).
 
-Edit the files here; changes apply to the running test instance immediately
-(no rebuild/reinstall needed for PHP changes — only rebuild the `.tar.gz` when
-you need a distributable package).
+Konsequenz: Dateien hier zu editieren ändert **nicht** die laufende
+Testinstanz. Um eine Änderung anzuwenden: `./build.sh`, das resultierende
+`itsonix.linkhub.tar.gz` auf den Container bringen (z. B. `docker cp`, oder
+der oben beschriebene Admin-UI-Upload+Entpacken-Weg), über
+`local/modules/itsonix.linkhub` entpacken, danach `DoInstall()` erneut
+auslösen, falls die Änderung install-zeitliches Verhalten betrifft
+(Event-Registrierung, Default-Menü-Sync) — sonst reicht ein einfacher
+Seiten-Reload, um das neue PHP zu übernehmen.

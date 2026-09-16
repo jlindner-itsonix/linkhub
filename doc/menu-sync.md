@@ -39,6 +39,17 @@ that's what the ID-prefix scheme below is for.
   `MENU_ENABLED`) — used by `DoUninstall()` (see
   [install-uninstall.md](install-uninstall.md)) since the whole module is
   being removed, not just its menu items disabled.
+- `MenuItem::getSiteId()` resolves the target site via `\CSite::GetDefSite()`
+  — **not** the `SITE_ID` constant. Real incident (16.09.2026): saving the
+  admin options form runs in Bitrix's admin context, where there's often no
+  resolvable site object; Bitrix's own kernel bootstrap then falls back to
+  `SITE_ID = LANG` (`bitrix/modules/main/include.php`) — the admin UI's
+  *language* (e.g. `de`), not the actual portal site (`s1`). Trusting
+  `SITE_ID` made `sync()` write into `left_menu_items_to_all_de` while the
+  real navigation reads `left_menu_items_to_all_s1` — entries saved via the
+  admin form silently never appeared, even though the option write itself
+  "succeeded". `CSite::GetDefSite()` queries the actual site table instead
+  and is unaffected by which context (admin/frontend/CLI) the code runs in.
 
 ## Tests
 
@@ -59,6 +70,10 @@ that's what the ID-prefix scheme below is for.
   legacy ID shapes (with and without a numeric suffix) get cleaned up.
 - `testSyncInvalidatesCompositeAndFirstPageCache` — see
   [menu-cache-invalidation.md](menu-cache-invalidation.md).
+- `testSyncIgnoresAMisleadingAmbientSiteIdConstant` — regression test for the
+  `SITE_ID`-vs-`CSite::GetDefSite()` bug above: defines `SITE_ID` to a wrong
+  value and asserts `sync()` still writes to the real default site's option,
+  not the one the constant would suggest.
 - `testRemoveAllStripsOwnAndLegacyItemsRegardlessOfMenuToggle` — `removeAll()`
   ignores `MENU_ENABLED` entirely.
 - `testRemoveAllDeletesTheOptionWhenNothingForeignIsLeft` /

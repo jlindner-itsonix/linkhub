@@ -74,9 +74,10 @@ prove it. That table is the contract — if you add or change a feature, add
 or update its doc file. Don't duplicate that map here; it would just drift
 out of sync with a second copy.
 
-One feature is deliberately undocumented-as-tested rather than tested: see
-[doc/admin-options-form.md](doc/admin-options-form.md) for why the admin
-form itself has no automated tests (its underlying persistence does).
+One area is only partially covered on purpose: see
+[doc/admin-options-form.md](doc/admin-options-form.md) for why
+`options.php`'s POST-handling has no automated test (its view template does,
+and so does the persistence both delegate to).
 
 ## Conventions
 
@@ -98,11 +99,18 @@ form itself has no automated tests (its underlying persistence does).
   Don't remove it, and don't add another direct `Option::set()` on a
   Bitrix-owned option without checking whether Bitrix itself invalidates a
   cache when it makes the same change.
-- **`SITE_ID` may be undefined** when this code runs from the admin panel
-  (`options.php`, `install/index.php`) — `MenuItem::getSiteId()` falls back to
-  `'s1'`. If this module is ever deployed to a real multi-site portal, this
-  needs revisiting; on a single-site Bitrix24 (the common case) it's a safe
-  assumption.
+- **Never trust the `SITE_ID` constant for resolving "which site" this
+  module targets — use `\CSite::GetDefSite()`.** `MenuItem::getSiteId()`
+  does this on purpose. Real incident (16.09.2026): in Bitrix's admin
+  context (saving the options form) there's often no resolvable site
+  object, so Bitrix's own kernel bootstrap falls back to `SITE_ID = LANG`
+  (the admin UI's *language*, e.g. `de`) instead of the real portal site
+  (`s1`) — trusting it made menu entries get written to
+  `left_menu_items_to_all_de` while the real navigation reads `_s1`, so
+  admin-saved entries silently never appeared. `SITE_ID` is reliable on the
+  frontend but not in admin/CLI contexts on this class of install; don't
+  reintroduce a `defined('SITE_ID') ? SITE_ID : ...` fallback here or
+  elsewhere in this module.
 - **HTML/CSS/JS stay out of PHP control-flow files where practical.**
   `lib/EventHandler.php` loads static CSS/JS from `templates/` (placeholder
   substitution via `str_replace`, no PHP in those files); `options.php` is

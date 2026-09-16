@@ -21,6 +21,7 @@ final class InstallTest extends TestCase
 		ModuleManager::resetForTests();
 		CacheProvider::resetForTests();
 		FirstPage::resetForTests();
+		\CSite::resetForTests();
 	}
 
 	private function newModule(bool $isAdmin): object

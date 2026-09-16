@@ -37,4 +37,5 @@ foreach (glob(__DIR__ . '/Stubs/Bitrix*.php') as $stubFile)
 	require_once $stubFile;
 }
 require_once __DIR__ . '/Stubs/CModule.php';
+require_once __DIR__ . '/Stubs/CSite.php';
 require_once __DIR__ . '/Stubs/bitrix_functions.php';

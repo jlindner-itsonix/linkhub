@@ -12,4 +12,9 @@ class FakeApplication
 	{
 		$this->headStrings[] = $html;
 	}
+
+	public function GetCurPage($withParams = false): string
+	{
+		return '/bitrix/admin/options.php';
+	}
 }

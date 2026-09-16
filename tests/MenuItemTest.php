@@ -18,6 +18,7 @@ final class MenuItemTest extends TestCase
 		Option::resetForTests();
 		CacheProvider::resetForTests();
 		FirstPage::resetForTests();
+		\CSite::resetForTests();
 	}
 
 	private function storedMenuItems(): array
@@ -108,6 +109,30 @@ final class MenuItemTest extends TestCase
 		MenuItem::sync();
 
 		self::assertSame('', Option::get('intranet', self::OPTION_NAME, '', 's1'));
+	}
+
+	public function testSyncIgnoresAMisleadingAmbientSiteIdConstant(): void
+	{
+		// itsonix: Regressionstest fuer einen echten Bug (16.09.2026) — im Bitrix-Admin-Kontext
+		// (options.php-Speichern) gibt es oft kein aufloesbares Site-Objekt, dann faellt Bitrix'
+		// eigener Kernel-Bootstrap auf SITE_ID=LANG zurueck (bitrix/modules/main/include.php),
+		// also die Admin-UI-Sprache ("de") statt der echten Portal-Site ("s1"). sync() schrieb
+		// dadurch in left_menu_items_to_all_de statt _s1 — die echte Navigation liest aber _s1,
+		// Eintrag blieb unsichtbar. getSiteId() darf sich daher NICHT auf die SITE_ID-Konstante
+		// verlassen, sondern muss CSite::GetDefSite() fragen.
+		if (!defined('SITE_ID'))
+		{
+			define('SITE_ID', 'de');
+		}
+
+		Config::setEntries([
+			['label' => 'XWiki', 'url' => '/xwiki/', 'showInMenu' => true, 'showInPopup' => false],
+		]);
+
+		MenuItem::sync();
+
+		self::assertCount(1, $this->storedMenuItems(), 'sync() muss trotz falscher SITE_ID-Konstante in left_menu_items_to_all_s1 schreiben');
+		self::assertSame('', Option::get('intranet', 'left_menu_items_to_all_de', '', 'de'), 'darf NICHT in die durch die Konstante nahegelegte falsche Site schreiben');
 	}
 
 	public function testSyncInvalidatesCompositeAndFirstPageCache(): void

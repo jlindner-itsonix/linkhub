@@ -19,4 +19,4 @@ change one.
 | [popup-rendering.md](popup-rendering.md) | Sidebar-logo popup (tiles) | `lib/EventHandler.php`, `templates/popup.*` |
 | [menu-icon-rendering.md](menu-icon-rendering.md) | Left-menu icon overlay per entry | `lib/EventHandler.php`, `templates/menu-item-icon.css` |
 | [install-uninstall.md](install-uninstall.md) | Module registration lifecycle | `install/index.php` |
-| [admin-options-form.md](admin-options-form.md) | Admin settings page (untested — documented why) | `options.php`, `ui/` |
+| [admin-options-form.md](admin-options-form.md) | Admin settings page (view smoke-tested; POST-handling untested — documented why) | `options.php`, `ui/` |
